@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rightscale/wstunnel/whois"
 	"github.com/inconshreveable/log15"
+	"github.com/rightscale/wstunnel/whois"
 )
 
 var _ fmt.Formatter
@@ -74,11 +74,14 @@ type remoteServer struct {
 	log             log15.Logger
 }
 
+// WSTunnelServer encapsulates the state of a single server: configuration,
+// open upstream connections, etc.
 type WSTunnelServer struct {
 	Port                int                     // port to listen on
 	WSTimeout           time.Duration           // timeout on websockets
 	HttpTimeout         time.Duration           // timeout for HTTP requests
 	Log                 log15.Logger            // logger with "pkg=WStunsrv"
+	corsSuffix          *string                 // optional CORS origin suffix
 	exitChan            chan struct{}           // channel to tell the tunnel goroutines to end
 	serverRegistry      map[token]*remoteServer // active remote servers indexed by token
 	serverRegistryMutex sync.Mutex              // mutex to protect map
@@ -122,6 +125,7 @@ func NewWSTunnelServer(args []string) *WSTunnelServer {
 	var httpTout *int = srvFlag.Int("httptimeout", 20*60, "timeout for http requests in seconds")
 	var slog *string = srvFlag.String("syslog", "", "syslog facility to log to")
 	var whoTok *string = srvFlag.String("robowhois", "", "robowhois.com API token")
+	var cors *string = srvFlag.String("cors", "", "Origin suffix for which to add CORS response headers")
 
 	srvFlag.Parse(args)
 
@@ -132,6 +136,11 @@ func NewWSTunnelServer(args []string) *WSTunnelServer {
 
 	wstunSrv.HttpTimeout = time.Duration(*httpTout) * time.Second
 	wstunSrv.Log.Info("Setting remote request timeout", "timeout", wstunSrv.HttpTimeout)
+
+	if cors != nil {
+		wstunSrv.corsSuffix = cors
+		wstunSrv.Log.Info("Enabling cross-origin resource sharing", "origin", *cors)
+	}
 
 	wstunSrv.exitChan = make(chan struct{}, 1)
 
@@ -273,12 +282,21 @@ func statsHandler(t *WSTunnelServer, w http.ResponseWriter, r *http.Request) {
 // payloadHeaderHandler handles payload requests with the tunnel token in the Host header.
 // Payload requests are requests that are to be forwarded through the tunnel.
 func payloadHeaderHandler(t *WSTunnelServer, w http.ResponseWriter, r *http.Request) {
+	// Token header is canonical source of session info
 	tok := r.Header.Get("X-Token")
+
+	// Use wildcard-DNS host header as a backup
+	if tok == "" {
+		components := strings.SplitN(r.Host, ".", 2)
+		tok = components[0]
+	}
+
 	if tok == "" {
 		t.Log.Info("HTTP Missing X-Token header", "req", r)
 		http.Error(w, "Missing X-Token header", 400)
 		return
 	}
+
 	payloadHandler(t, w, r, token(tok))
 }
 
@@ -361,8 +379,8 @@ func getResponse(t *WSTunnelServer, req *remoteRequest, w http.ResponseWriter, r
 	case resp := <-req.replyChan:
 		// if there's no error just respond
 		if resp.err == nil {
-			code := writeResponse(w, resp.response)
-			req.log.Info("HTTP RET", "status", code)
+			code := t.writeResponse(r.Header.Get("Origin"), w, resp.response)
+			req.log.Info("HTTP RET", "status", code, "len", resp.response.Len())
 			return
 		}
 		// if it's a non-retryable error then write the error
@@ -487,7 +505,7 @@ var censoredHeaders = []string{
 }
 
 // Write an HTTP response from a byte buffer into a ResponseWriter
-func writeResponse(w http.ResponseWriter, buf *bytes.Buffer) int {
+func (t *WSTunnelServer) writeResponse(origin string, w http.ResponseWriter, buf *bytes.Buffer) int {
 	resp, err := http.ReadResponse(bufio.NewReader(buf), nil)
 	if err != nil {
 		log15.Info("WriteResponse: can't parse incoming response", "err", err)
@@ -497,7 +515,12 @@ func writeResponse(w http.ResponseWriter, buf *bytes.Buffer) int {
 	for _, h := range censoredHeaders {
 		resp.Header.Del(h)
 	}
-	// write the response
+
+	// Add CORS response header if the request's Origin matches allowed suffix.
+	if t.corsSuffix != nil && origin != "" && strings.HasSuffix(origin, *t.corsSuffix) {
+		resp.Header.Add("Access-Control-Allow-Origin", origin)
+	}
+
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
