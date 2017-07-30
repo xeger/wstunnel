@@ -1,22 +1,32 @@
-hash: b859912727bdf99f05a7076ff14e03db3a431d8171ed88774f708166db41e860
-updated: 2016-10-18T17:03:18.560959067-07:00
+hash: f2696a72c3c9961b4cff912a4d8ea63100e801b09419c24f041367df947f20ae
+updated: 2017-07-29T19:20:45.875674279-07:00
 imports:
+- name: github.com/armon/go-metrics
+  version: 93f237eba9b0602f3e73710416558854a81d9337
+- name: github.com/dgrijalva/jwt-go
+  version: 6c8dedd55f8a2e41f605de6d5d66e51ed1f299fc
+- name: github.com/dimfeld/httptreemux
+  version: 86f7c217d9043ebc6adfd8e2ed04a0bb1e1db651
 - name: github.com/go-stack/stack
   version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+- name: github.com/goadesign/goa
+  version: 645ffcd5a65b08844a71f30a6c5c1ad992542e05
+  subpackages:
+  - client
+  - middleware
+  - uuid
 - name: github.com/gorilla/websocket
-  version: 8003df83eef3a5d5301beb970356755128810563
+  version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
 - name: github.com/inconshreveable/log15
-  version: 666f95bcf803bb4219720fae9c6626294935346a
-  repo: https://github.com/inconshreveable/log15
-  vcs: git
+  version: 74a0988b5f804e8ce9ff74fca4f16980776dff29
   subpackages:
   - term
 - name: github.com/mattn/go-colorable
-  version: 9056b7a9f2d1f2d96498d6d146acd1f9d5ed3d59
+  version: 3fa8c76f9daed4067e4a806fb7e4dc86455c6d6a
 - name: github.com/mattn/go-isatty
-  version: 56b76bdf51f7708750eac80fa38b952bb9f32639
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/onsi/ginkgo
-  version: 16c38793d41b07a5f9ae77d573af7836a994bf27
+  version: 77a8c1e5c40d6bb6c5eb4dd4bdce9763564f6298
   subpackages:
   - config
   - internal/codelocation
@@ -25,15 +35,18 @@ imports:
   - internal/leafnodes
   - internal/remote
   - internal/spec
+  - internal/spec_iterator
   - internal/specrunner
   - internal/suite
   - internal/testingtproxy
   - internal/writer
   - reporters
   - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 82a02eccf12c018071eef42fbb701c0db6f1e3db
+  version: c990b8b3a34c8814a6657daebe8e19ff4d9647a1
   subpackages:
   - format
   - ghttp
@@ -47,14 +60,51 @@ imports:
   - matchers/support/goraph/node
   - matchers/support/goraph/util
   - types
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/rightscale/acl
+  version: ddf001b9fea8188754fdaf7ca23cf54c709c333f
+  repo: git@github.com:rightscale/acl.git
+  subpackages:
+  - generated/client
+- name: github.com/rightscale/jwtauth
+  version: 603d1e99cc33f8b81c48e0b9cdf8eb9d7881f956
+- name: github.com/satori/go.uuid
+  version: 5bf94b69c6b68ee1b541973bb8e1144db23a194b
+- name: golang.org/x/net
+  version: da118f7b8e5954f39d0d2130ab35d4bf0e3cb344
+  subpackages:
+  - context
+  - html
+  - html/atom
+  - html/charset
+  - websocket
 - name: golang.org/x/sys
-  version: a408501be4d17ee978c04a618e7a1b22af058c0e
+  version: abf9c25f54453410d0c6668e519582a9e1115027
   subpackages:
   - unix
 testImports:
 - name: github.com/golang/protobuf
-  version: 98fa357170587e470c5f27d3c3ea0947b71eb455
+  version: 2bba0603135d7d7f5cb73b2125beeda19c09f4ef
   subpackages:
   - proto
+- name: golang.org/x/text
+  version: cfdf022e86b4ecfb646e1efbd7db175dd623a8fa
+  subpackages:
+  - encoding
+  - encoding/charmap
+  - encoding/htmlindex
+  - encoding/internal
+  - encoding/internal/identifier
+  - encoding/japanese
+  - encoding/korean
+  - encoding/simplifiedchinese
+  - encoding/traditionalchinese
+  - encoding/unicode
+  - internal/tag
+  - internal/utf8internal
+  - language
+  - runes
+  - transform
 - name: gopkg.in/yaml.v2
-  version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
+  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b

@@ -3,6 +3,8 @@ import:
   - package: github.com/gorilla/websocket
   - package: github.com/mattn/go-colorable
   - package: github.com/inconshreveable/log15
+  - package: github.com/rightscale/acl
+    repo: git@github.com:rightscale/acl.git
   # Used during tests
   - package: github.com/onsi/ginkgo
   - package: github.com/onsi/gomega

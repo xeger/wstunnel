@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/inconshreveable/log15"
+	"github.com/rightscale/wstunnel/acl"
 	"github.com/rightscale/wstunnel/whois"
 )
 
@@ -85,6 +86,8 @@ type WSTunnelServer struct {
 	exitChan            chan struct{}           // channel to tell the tunnel goroutines to end
 	serverRegistry      map[token]*remoteServer // active remote servers indexed by token
 	serverRegistryMutex sync.Mutex              // mutex to protect map
+	acl                 acl.Client              // ACL service for authorization checks
+	cookie              string                  // name of cookie to send to ACL service
 }
 
 // name Lookups
@@ -125,7 +128,9 @@ func NewWSTunnelServer(args []string) *WSTunnelServer {
 	var httpTout *int = srvFlag.Int("httptimeout", 20*60, "timeout for http requests in seconds")
 	var slog *string = srvFlag.String("syslog", "", "syslog facility to log to")
 	var whoTok *string = srvFlag.String("robowhois", "", "robowhois.com API token")
-	var cors *string = srvFlag.String("cors", "", "Origin suffix for which to add CORS response headers")
+	var cors *string = srvFlag.String("cors", "", "allowed origin suffix for CORS")
+	var aclURL *string = srvFlag.String("acl-url", "", "ACL service location")
+	var cookie *string = srvFlag.String("cookie", "", "authorization cookie name")
 
 	srvFlag.Parse(args)
 
@@ -140,6 +145,16 @@ func NewWSTunnelServer(args []string) *WSTunnelServer {
 	if cors != nil {
 		wstunSrv.corsSuffix = cors
 		wstunSrv.Log.Info("Enabling cross-origin resource sharing", "origin", *cors)
+	}
+
+	if *aclURL != "" {
+		url, err := url.Parse(*aclURL)
+		if err != nil {
+			log15.Crit(fmt.Sprintf("malformed acl-url: %s", *aclURL))
+			os.Exit(1)
+		}
+		wstunSrv.acl = acl.NewClient(url, false)
+		wstunSrv.cookie = *cookie
 	}
 
 	wstunSrv.exitChan = make(chan struct{}, 1)
@@ -323,9 +338,15 @@ func payloadHandler(t *WSTunnelServer, w http.ResponseWriter, r *http.Request, t
 	req := makeRequest(r, t.HttpTimeout)
 	req.log = t.Log.New("token", cutToken(tok))
 
-	if err := authorize(req, tok); err != nil {
-		req.log.Error("unauthorized request", "addr", req.remoteAddr, "status", "403", "err", err)
+	if ok, err := authorize(t.cookie, t.acl, r); err != nil {
+		req.log.Error("authorization error", "addr", req.remoteAddr, "status", "403", "err", err)
 		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("tunnel authorization error"))
+		return
+	} else if !ok {
+		req.log.Error("unauthorized request", "addr", req.remoteAddr, "status", "403")
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("tunnel access denied"))
 		return
 	}
 
