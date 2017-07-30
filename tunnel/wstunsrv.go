@@ -322,6 +322,13 @@ func payloadHandler(t *WSTunnelServer, w http.ResponseWriter, r *http.Request, t
 	// create the request object
 	req := makeRequest(r, t.HttpTimeout)
 	req.log = t.Log.New("token", cutToken(tok))
+
+	if err := authorize(req, tok); err != nil {
+		req.log.Error("unauthorized request", "addr", req.remoteAddr, "status", "403", "err", err)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
 	//req.token = tok
 	//log_token := cutToken(tok)
 
